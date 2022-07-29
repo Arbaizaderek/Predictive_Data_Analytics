@@ -1,0 +1,51 @@
+---
+title: "Asignación_1_Derek_Arbaiza"
+author: "Derek Arbaiza Barrantes"
+date: '2022-07-24'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Parte 1
+```{r echo =FALSE}
+ConfusionMatrix <- data.frame(Exactitud = 0.989293947,
+                              Error = 0.010706053,
+                              Verdaderos_Positivos = 0.8, 
+                              Falsos_Positivos = 0.000142614,
+                              Precisión = 0.989434653, 
+                              Exhaustividad = 0.999855884,
+                              Sensibilidad = 0.013318535,
+                              Especificidad = 0.003363229)
+
+ConfusionMatrix
+cat("Considero que sí es un modelo alto, dado que su porcentaje de exactitud es superior al 98%.")
+```
+
+Parte 2
+```{r echo=FALSE}
+HRData <- read.csv(file = "recursos_humanos.csv", sep=",", dec=".", header = T)
+HRData$Work_accident <- factor(HRData$Work_accident,
+                               levels = c(0,1),
+                               labels = c("No", "Sí"))
+HRData$left <- factor(HRData$left,
+                               levels = c(0,1),
+                               labels = c("No", "Sí"))
+HRData$promotion_last_5years <- factor(HRData$promotion_last_5years,
+                               levels = c(0,1),
+                               labels = c("No", "Sí"))
+size_n <- dim(HRData)
+n <- size_n[1]
+sample__ <- sample(1:n, floor(n*0.25))
+testing_table <- HRData[sample__,]
+learning_table <- HRData[-sample__,]
+Jumperworker <- HRData$left == "No"
+AmountJumpers <- dim(HRData[Jumperworker, ])[1]
+
+cat("Cantidad de personas que dejan la empresa:", AmountJumpers)
+cat("Cantidad todal de observaciones: 14999.")
+cat("Considero que sí es un problema equilibrado, dado que es una relación 7 a 3")
+```
+
