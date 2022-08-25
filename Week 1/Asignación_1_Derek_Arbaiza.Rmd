@@ -9,7 +9,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-Parte 1
+## Resultados {.tabset}
+### Parte 1
 ```{r echo =FALSE}
 ConfusionMatrix <- data.frame(Exactitud = 0.989293947,
                               Error = 0.010706053,
@@ -24,7 +25,7 @@ ConfusionMatrix
 cat("Considero que sí es un modelo alto, dado que su porcentaje de exactitud es superior al 98%.")
 ```
 
-Parte 2
+### Parte 2
 ```{r echo=FALSE}
 HRData <- read.csv(file = "recursos_humanos.csv", sep=",", dec=".", header = T)
 HRData$Work_accident <- factor(HRData$Work_accident,
@@ -47,5 +48,19 @@ AmountJumpers <- dim(HRData[Jumperworker, ])[1]
 cat("Cantidad de personas que dejan la empresa:", AmountJumpers)
 cat("Cantidad todal de observaciones: 14999.")
 cat("Considero que sí es un problema equilibrado, dado que es una relación 7 a 3")
+```
+
+### Parte 3
+```{r echo=FALSE}
+cat("Lo que se realizó fue convertir el archivo y se transformó de cvs a un excel file.")
+cat("Luego se filtró los records que tuvieran fraude positivo.")
+cat("Posterior se decantó las demás variables y se contaron sus permutaciones.")
+
+```
+
+![](https://ibb.co/BCD13kz)
+
+```{r echo=FALSE}
+cat("Basado en la imagen, y en las variables que más se encuentran, yo diría que se puede predecir un patrón de fraude si: Es nacional, usa el tipo de pago A, modo de pago No definido, sin fiador, sin otro seguro y soltero.")
 ```
 

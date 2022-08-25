@@ -1,0 +1,182 @@
+---
+title: "Asignación_2_Derek_Arbaiza"
+author: "Derek Arbaiza Barrantes"
+date: '2022-08-05'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(kknn)
+library(rpart)
+library(randomForest)
+library(e1071)
+```
+
+## Results {.tabset}
+
+### Primera parte.
+```{r echo=FALSE}
+ChurnData <- read.csv(file = "Datos_Churn.csv", sep=",", dec=".", header=TRUE, row.names = 1)
+ChurnData <- na.omit(ChurnData)
+ChurnData$TarjetaCredito <- factor(ChurnData$TarjetaCredito,
+                           levels = c(0,1),
+                           labels = c("No", "Sí"))
+ChurnData$Activo <- factor(ChurnData$Activo,
+                           levels = c(0,1),
+                           labels = c("No", "Sí"))
+ChurnData$DejaBanco <- factor(ChurnData$DejaBanco,
+                           levels = c(0,1),
+                           labels = c("No", "Sí"))
+
+
+indices.general <- function(MC) {
+  precision.global <- sum(diag(MC))/sum(MC)
+  error.global <- 1 - precision.global
+  precision.categoria <- diag(MC)/rowSums(MC)
+  res <- list(matriz.confusion = MC, precision.global = precision.global, error.global = error.global, 
+              precision.categoria = precision.categoria)
+  names(res) <- c("Matriz de Confusión", "Precisión Global", "Error Global", 
+                  "Precisión por categoría")
+  return(res)
+}
+
+#str(ChurnData)
+#summary(ChurnData)
+#dim(ChurnData)
+
+ChurnData <- ChurnData[-c(1, 6)]
+
+size_n <- dim(ChurnData)
+n <- size_n[1]
+sample__ <- sample(1:n, floor(n*0.25))
+testing_table <- ChurnData[sample__,]
+learning_table <- ChurnData[-sample__,]
+
+```
+
+```{r echo=FALSE}
+model1 <- train.kknn(DejaBanco~., data = learning_table, kmax=1)
+myPrediction1 <- predict(model1, testing_table[,-10])
+MC <- table(testing_table[,10], myPrediction1)
+indices.general(MC)
+result1 <- indices.general(MC)
+```
+
+```{r echo=FALSE}
+model2 <- rpart(DejaBanco~., data=learning_table)
+myPrediction2 <- predict(model2, learning_table, type = 'class')
+MC <- table(learning_table$DejaBanco, myPrediction2)
+indices.general(MC)
+result2 <- indices.general(MC)
+```
+
+```{r echo=FALSE}
+model3 <- randomForest(DejaBanco~.,data = learning_table, importance = TRUE)
+model3
+myPrediction3 <- predict(model3, testing_table[, -10])
+MC <- table(testing_table[,10], myPrediction3)
+indices.general(MC)
+result3 <- indices.general(MC)
+```
+
+```{r echo=FALSE}
+model4 <- svm(DejaBanco~., data= learning_table, kernel = "linear")
+model4
+myPrediction4 <- predict(model4, testing_table)
+MC <- table(testing_table[,10], myPrediction4)
+indices.general(MC)
+result4 <- indices.general(MC)
+```
+
+```{r echo=FALSE}
+  comparativeTable <- data.frame(Datos = c("Precisión Global", "Error Global", "Precisión Positiva", "Precisión Negativa", "Asertividad Negativa", "Asertividad Positiva", "Falsos Positivos", "Verdaderos Positivos"),
+                               Train.kknn = c(result1$`Precisión Global`,
+                                              result1$`Error Global`, 
+                                              result1$`Precisión por categoría`,
+                                              result1$`Matriz de Confusión`),
+                               rpart = c(result2$`Precisión Global`,
+                                              result2$`Error Global`, 
+                                              result2$`Precisión por categoría`,
+                                              result2$`Matriz de Confusión`),
+                               randomForest = c(result3$`Precisión Global`,
+                                              result3$`Error Global`, 
+                                              result3$`Precisión por categoría`,
+                                              result3$`Matriz de Confusión`),
+                               svm = c(result4$`Precisión Global`,
+                                              result4$`Error Global`, 
+                                              result4$`Precisión por categoría`,
+                                              result4$`Matriz de Confusión`))
+comparativeTable
+cat("Considero que el mejor modelo es el rpart dado que su precisión positiva (para detectar si es fraude) es de 96%.")
+```
+
+### Segunda parte
+
+```{r echo=FALSE}
+handWritingTestTable <- read.csv(file = "ZipDataTestCod.csv", sep=";", dec=".", header = TRUE)
+handWritingTrainTable <- read.csv(file = "ZipDataTrainCod.csv", sep=";", dec=".", header = TRUE)
+
+handWritingTestTable <- na.omit(handWritingTestTable)
+handWritingTrainTable <- na.omit(handWritingTrainTable)
+
+handWritingTestTable$Numero <- factor(handWritingTestTable$Numero)
+handWritingTrainTable$Numero <- factor(handWritingTrainTable$Numero)
+
+```
+
+```{r echo=FALSE}
+model1B <- train.kknn(Numero~., data = handWritingTrainTable, kmax=85)
+myPrediction1B <- predict(model1B, handWritingTestTable[,-1])
+MC <- table(handWritingTestTable[,1], myPrediction1B)
+indices.general(MC)
+result1B <- indices.general(MC)
+```
+
+```{r echo=FALSE}
+model2B <- rpart(Numero~., data=handWritingTrainTable)
+myPrediction2B <- predict(model2B, handWritingTrainTable, type = 'class')
+MC <- table(handWritingTrainTable$Numero, myPrediction2B)
+indices.general(MC)
+result2B <- indices.general(MC)
+```
+
+```{r echo=FALSE}
+model3B <- randomForest(Numero~., data = handWritingTrainTable, importance = TRUE)
+myPrediction3B <- predict(model3B, handWritingTestTable[,-1])
+MC <- table(handWritingTestTable[,1], myPrediction3B)
+indices.general(MC)
+result3B <- indices.general(MC)
+```
+
+```{r echo=FALSE}
+model4B <- svm(Numero~., data= handWritingTrainTable, kernel = "linear")
+myPrediction4B <- predict(model4B, handWritingTrainTable)
+MC <- table(handWritingTrainTable[,1], myPrediction4B)
+indices.general(MC)
+result4B <- indices.general(MC)
+```
+
+
+```{r echo=FALSE}
+comparativeTable <- data.frame(Datos = c("Precisión Global", "Error Global"),
+                               Train.kknn = c(result1B$`Precisión Global`,
+                                              result1B$`Error Global`),
+                               rpart = c(result2B$`Precisión Global`,
+                                              result2B$`Error Global`),
+                               randomForest = c(result3B$`Precisión Global`,
+                                              result3B$`Error Global`),
+                               svm = c(result4B$`Precisión Global`,
+                                              result3B$`Error Global`))
+comparativeTable
+cat("Considero que el mejor método de predicción es el svm, dado que su precisión es de 99%.")
+```
+
+
+### Tercera parte
+```{r}
+
+
+```
+
+
