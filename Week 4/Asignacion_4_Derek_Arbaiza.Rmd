@@ -1,0 +1,94 @@
+---
+title: "Asigancion_4_Derek_Arbaiza"
+author: "Derek Arbaiza Barrantes"
+date: '2022-08-15'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(lubridate)
+library(dygraphs)
+library(itsmr)
+library(tidyverse)
+library(xts)
+library(dplyr)
+library(forecast)
+```
+
+```{r echo=FALSE}
+oldDate <- as.Date(as.character("1985/01/21"), format="%Y/%m/%d")
+todayDate <- as.Date(as.character("2022/08/15"), format="%Y/%m/%d")
+newDate <- todayDate - oldDate
+newDate
+```
+
+```{r echo=FALSE}
+DJdata <- read.csv(file = "DJTable.csv", sep=";", dec=".", header = TRUE)
+DJdataConverted <- DJdata[c(1,7)]
+
+
+DJdataConverted$X <- as.Date(DJdataConverted$X, format = "%d/%m/%Y")
+
+DJdataConverted$DayofTheWeek <- wday(DJdataConverted$X, week_start=1)
+
+DJdataConverted <- subset(DJdataConverted, DayofTheWeek == 1)
+
+FinalData <- ts(DJdataConverted[,2], start = c(2010,1), freq =365)
+
+plot(FinalData, type="o", col="blue")
+
+```
+
+
+```{r echo=FALSE}
+data1 <- ts(data = strikes, frequency = 1)
+dygraph(data1, main="Cantidad de huelgas por año", ylab="Cantidad de personas")
+```
+
+
+```{r echo=FALSE}
+data2 <- ts(data = Sunspots, frequency = 1)
+dygraph(data2, main="Manchas en el sol de 1770 a 1869 por año", ylab="Manchas")
+```
+
+```{r echo=FALSE}
+data3 <- ts(data = wine, frequency = 12)
+dygraph(data3, main="Ventas de vino por mes", ylab="Ventas")
+```
+
+```{r echo=FALSE}
+exchangeRate <- read.csv(file = "USA-CR.csv", sep=";", dec=",")
+exchangeRate$FECHA <- as.Date(exchangeRate$FECHA, format = "%d/%m/%Y")
+
+filteredExchange <- exchangeRate[exchangeRate$FECHA >= "2016-01-01" &
+                                   exchangeRate$FECHA <= "2017-11-28",]
+
+exchangeRateTimeLapse <- ts(data = filteredExchange$VENTA, frequency = 365)
+
+mostImportant <- spec.pgram(exchangeRateTimeLapse, log = "no", plot=FALSE)
+
+timelapse <- order(mostImportant$spec, mostImportant$freq, decreasing = FALSE)
+
+mostTimeLapse <- timelapse[1:3]
+
+auto.arima(mostTimeLapse)
+
+model <- arima(mostTimeLapse, order = c(0,0,0))
+prediction1 <- predict(model, n.ahead = 8)
+
+data4 <- ts(data = prediction1, frequency = 1)
+
+```
+
+```{r echo=FALSE}
+model2 <- arima(deaths, order=c(1,2,1), seasonal = list(order=c(2,1,2), period = 12))
+prediction2 <- predict(model2)
+cat("12 porque son muertes por año")
+
+data5 <- ts(data = prediction2, frequency = 1)
+plot(data5$pred, data5$se)
+
+dygraph(data5$pred, data5$se)
+```
+
