@@ -1,0 +1,181 @@
+---
+title: "Asignacion_3_Derek_Arbaiza"
+author: "Derek Arbaiza Barrantes"
+date: '2022-08-07'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ada)
+library(xgboost)
+library(e1071)
+library(nnet)
+```
+
+
+```{r echo=FALSE}
+indices.general <- function(MC) {
+  precision.global <- sum(diag(MC))/sum(MC)
+  error.global <- 1 - precision.global
+  precision.categoria <- diag(MC)/rowSums(MC)
+  res <- list(matriz.confusion = MC, precision.global = precision.global, error.global = error.global, 
+              precision.categoria = precision.categoria)
+  names(res) <- c("Matriz de Confusion", "Precision Global", "Error Global", 
+                  "Precision por categoria")
+  return(res)
+}
+```
+
+## Asignacion 3 {.tabset}
+
+### Ejercicios
+#Primera parte
+```{r echo=FALSE}
+ChurnData <- read.csv(file = "Datos_Churn.csv", header = TRUE, sep = ",", dec = ".", row.names = 1)
+ChurnData <- na.omit(ChurnData)
+
+ChurnData <- ChurnData[,-1]
+ChurnData <- ChurnData[,-5]
+
+ChurnData$TarjetaCredito <- factor(ChurnData$TarjetaCredito,
+                           levels = c(0,1),
+                           labels = c("No", "Si"))
+ChurnData$Activo <- factor(ChurnData$Activo,
+                           levels = c(0,1),
+                           labels = c("No", "Si"))
+ChurnData$DejaBanco <- factor(ChurnData$DejaBanco,
+                           levels = c(0,1),
+                           labels = c("No", "Si"))
+
+barplot(prop.table(table(ChurnData$DejaBanco)), col=c("pink", "white"), main = "Distribuccion de la variable a predecir.")
+
+mySize = dim(ChurnData)
+n <- mySize[1]
+mySample <- sample(1:n,floor(n*0.25))
+ChurnTestingTable <- ChurnData[mySample,]
+ChurnLearningTable <- ChurnData[-mySample,]
+
+```
+
+# Ada 
+```{r echo=FALSE}
+model1a <- ada(DejaBanco~., data=ChurnLearningTable)
+model1a
+
+plot(model1a, TRUE, TRUE)
+varplot(model1a)
+
+myPrediction1a <- predict(model1a, ChurnLearningTable[,-10])
+MC <- table(ChurnLearningTable$DejaBanco, myPrediction1a)
+results1 <- indices.general(MC)
+
+```
+
+# Calibracion de Ada
+```{r echo=FALSE}
+model1b <- ada(DejaBanco~., data=ChurnLearningTable, iter = 60, type = 'real', control = rpart.control(minsplit = 2, maxdepth = 30))
+model1b
+
+plot(model1b, TRUE, TRUE)
+varplot(model1b)
+
+myPrediction1b <- predict(model1b, ChurnLearningTable[,-10])
+MC <- table(ChurnLearningTable$DejaBanco, myPrediction1b)
+results2 <- indices.general(MC)
+cat("Se logro una mejora de la precision global del 0.66% al subirle las iteraciones a 60.")
+```
+
+# Extreme Gradient Boosting 
+```{r echo=FALSE}
+ChurnTestingTableExtreme <- ChurnTestingTable
+ChurnLearningTableExtreme <-ChurnLearningTable
+ChurnLearningTableExtreme$DejaBanco <- as.numeric(ifelse(ChurnLearningTableExtreme$DejaBanco == "Si", "1", "0"))
+ChurnTestingTableExtreme$DejaBanco <- as.numeric(ifelse(ChurnTestingTableExtreme$DejaBanco == "Si", "1", "0"))
+
+toPredictTo <- ChurnTestingTableExtreme$DejaBanco
+
+ChurnTestingTableExtreme[] <- lapply(ChurnTestingTableExtreme, as.numeric)
+ChurnLearningTableExtreme[] <- lapply(ChurnLearningTableExtreme, as.numeric)
+
+ChurnLearningTableExtreme <- xgb.DMatrix(data = data.matrix(ChurnLearningTableExtreme[,-10]), label = data.matrix(ChurnLearningTableExtreme$DejaBanco))
+
+ChurnTestingTableExtreme <- xgb.DMatrix(data = data.matrix(ChurnTestingTableExtreme[,-10]), label = data.matrix(ChurnTestingTableExtreme$DejaBanco))
+
+modelParameters <- list(booster = "gbtree", objective = "binary:logistic", eta=0.3, gamma=0, max_depth=6, min_child_weight=1, subsample=1, colsample_bytree=1)
+
+model2 <- xgb.train(params = modelParameters, data = ChurnLearningTableExtreme, nrounds = 50, watchlist = list(train=ChurnLearningTableExtreme, test=ChurnTestingTableExtreme), print_every_n = 10, early_stopping_rounds = 10, maximize = F, eval_metric = "error")
+
+myPrediction2 <- predict(model2, ChurnTestingTableExtreme)
+myPrediction2 <- ifelse(myPrediction2 > 0.5, 1, 0)
+
+MC <- table(myPrediction2, toPredictTo)
+
+results3 <- indices.general(MC)
+
+
+important.variables <- xgb.importance(feature_names = colnames(ChurnLearningTableExtreme), model =  model2)
+xgb.plot.importance(importance_matrix = important.variables)
+```
+
+# naiveBayes
+```{r echo=FALSE}
+model3 <- naiveBayes(DejaBanco~., data= ChurnLearningTable)
+myPrediction3 <- predict(model3, ChurnTestingTable[,-10])
+MC <- table(ChurnTestingTable[,10], myPrediction3)
+indices.general(MC)
+results4 <- indices.general(MC)
+
+```
+
+# Redes neuronales
+```{r echo=FALSE}
+model4 <- nnet(DejaBanco~., data = ChurnLearningTable, size = 4, rang= 0.1, decay = 5e-4,
+               maxit = 200, MaxNWts = 500, trace= FALSE)
+myPrediction4 <- predict(model4, ChurnTestingTable[,-10], type="class")
+
+MC <- table(ChurnTestingTable$DejaBanco, myPrediction4)
+indices.general(MC)
+results5 <- indices.general(MC)
+
+```
+
+# Resultados
+```{r echo=FALSE}
+comparativeTable <- data.frame(Datos =c(" ", " "),
+                               Ada = c(results1$`Precision por categoria`), 
+                               Ada_Calibrado = c(results2$`Precision por categoria`),
+                               Extreme = c(results3$`Precision por categoria`),
+                               Bayes = c(results4$`Precision por categoria`),
+                               Redes = c(results5$`Precision por categoria`))
+comparativeTable
+cat("Considero que para detectar un efectivo abandono del banco, el mejor modelo es el Ada calibrado con el correcto número de iteraciones, dado que sacó 97% de precisición de categoría.")
+```
+
+# Segunda parte
+```{r echo=FALSE}
+
+ChurnDataPre <- read.csv(file = "Swsacf.csv", header = TRUE, sep = ",", dec = ".", row.names = 1)
+ChurnDataPre <- ChurnDataPre[,-1]
+ChurnDataPre <- ChurnDataPre[,-5]
+
+ChurnDataPre$TarjetaCredito <- factor(ChurnDataPre$TarjetaCredito,
+                           levels = c(0,1),
+                           labels = c("No", "Si"))
+ChurnDataPre$Activo <- factor(ChurnDataPre$Activo,
+                           levels = c(0,1),
+                           labels = c("No", "Si"), 
+                           ChurnDataPre$Genero<- factor(ChurnDataPre$Genero,
+                           levels = c("Masc","Femen"),
+                           labels = c("Masculino", "Femenino")))
+
+modelPre <- ada(DejaBanco~., data=ChurnLearningTable)
+
+myPredictionPre <- predict(modelPre, ChurnDataPre[,-10])
+MC <- table(ChurnDataPre$DejaBanco, myPredictionPre)
+
+cat("Resultados de mi predición")
+myPredictionPre
+
+```
+
